@@ -1,112 +1,36 @@
 # main.py
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
-import sqlite3
 import os
 import asyncio
-import threading
-import time
-import uvicorn
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+from aiogram.filters import Command
 
-# ========== БАЗА ДАННЫХ ==========
-def init_db():
-    conn = sqlite3.connect('game.db')
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS players (
-            user_id INTEGER PRIMARY KEY,
-            username TEXT,
-            score INTEGER
-        )
-    ''')
-    conn.commit()
-    conn.close()
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+WEBAPP_URL = "https://tg-game-production-fabe.up.railway.app"  # твой URL
 
-def update_score(user_id: int, username: str, score: int):
-    conn = sqlite3.connect('game.db')
-    cur = conn.execute('SELECT score FROM players WHERE user_id = ?', (user_id,))
-    row = cur.fetchone()
-    if row:
-        if score > row[0]:
-            conn.execute('UPDATE players SET score = ? WHERE user_id = ?', (score, user_id))
-    else:
-        conn.execute('INSERT INTO players (user_id, username, score) VALUES (?, ?, ?)',
-                     (user_id, username, score))
-    conn.commit()
-    conn.close()
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
 
-def get_top():
-    conn = sqlite3.connect('game.db')
-    rows = conn.execute('SELECT username, score FROM players ORDER BY score DESC LIMIT 10').fetchall()
-    conn.close()
-    return [{'username': r[0], 'score': r[1]} for r in rows]
+@dp.message(Command("start"))
+async def start_cmd(message: types.Message):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎮 Играть", web_app=WebAppInfo(url=WEBAPP_URL))]
+    ])
+    await message.answer(
+        "🎮 Добро пожаловать в игру!\nНажми на кнопку ниже, чтобы начать.",
+        reply_markup=keyboard
+    )
+    print(f"✅ /start от {message.from_user.id}")
 
-init_db()
+@dp.message()
+async def echo(message: types.Message):
+    await message.answer("Отправь /start, чтобы начать игру!")
 
-# ========== FASTAPI ==========
-app = FastAPI()
-
-@app.get('/')
-async def game_page():
-    with open('game.html', 'r', encoding='utf-8') as f:
-        return HTMLResponse(f.read())
-
-@app.get('/api/score')
-async def save_score(user_id: int, username: str, score: int):
-    update_score(user_id, username, score)
-    return {'ok': True}
-
-@app.get('/api/top')
-async def get_top_scores():
-    return get_top()
-
-# ========== ЗАПУСК FASTAPI В ПОТОКЕ ==========
-def run_fastapi():
-    port = int(os.environ.get("PORT", 8000))
-    print(f"🚀 FastAPI запускается на порту {port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
-
-# ========== БОТ (ЗАПУСКАЕТСЯ В ГЛАВНОМ ПОТОКЕ) ==========
-async def run_bot():
-    from aiogram import Bot, Dispatcher, types
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
-    from aiogram.filters import Command
-    
-    BOT_TOKEN = os.environ.get("BOT_TOKEN")
-    if not BOT_TOKEN:
-        print("❌ BOT_TOKEN не найден!")
-        return
-    
-    # ТВОЙ URL (тот, который открывается в браузере)
-    WEBAPP_URL = "https://tg-game-production-fabe.up.railway.app"
-    
-    print(f"🤖 Бот запускается. WebApp URL: {WEBAPP_URL}")
-    
-    bot = Bot(token=BOT_TOKEN)
-    dp = Dispatcher()
-    
-    @dp.message(Command("start"))
-    async def start_cmd(message: types.Message):
-        keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🎮 Играть", web_app=WebAppInfo(url=WEBAPP_URL))]
-        ])
-        await message.answer("🎮 Нажимай на красный круг! У тебя 30 секунд.", reply_markup=keyboard)
-        print(f"✅ /start от {message.from_user.id}")
-    
-    print("✅ Бот готов, запускаем polling...")
+async def main():
+    print("🤖 Бот запущен и готов к работе!")
+    print(f"🌐 WebApp URL: {WEBAPP_URL}")
     await dp.start_polling(bot)
 
-def start_bot():
-    asyncio.run(run_bot())
-
-# ========== ЗАПУСК ==========
 if __name__ == "__main__":
-    # Запускаем FastAPI в отдельном потоке
-    fastapi_thread = threading.Thread(target=run_fastapi, daemon=True)
-    fastapi_thread.start()
-    
-    # Даём FastAPI время запуститься
-    time.sleep(2)
-    
-    # Запускаем бота в главном потоке
     print("🚀 Запускаем бота...")
-    start_bot()
+    asyncio.run(main())
