@@ -7,11 +7,6 @@ import asyncio
 import threading
 from contextlib import asynccontextmanager
 import os
-
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-
-if not BOT_TOKEN:
-    raise ValueError("BOT_TOKEN не найден! Добавь переменную окружения BOT_TOKEN")
 # ========== БАЗА ДАННЫХ ==========
 def init_db():
     conn = sqlite3.connect('game.db')
@@ -69,3 +64,34 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     print(f"🚀 Запуск на порту {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
+# ========== ЗАПУСК БОТА В ПОТОКЕ ==========
+def run_bot():
+    from aiogram import Bot, Dispatcher, types
+    from aiogram.utils import executor
+    import os
+    
+    BOT_TOKEN = os.environ.get("BOT_TOKEN")
+    if not BOT_TOKEN:
+        print("❌ BOT_TOKEN не найден!")
+        return
+    
+    bot = Bot(token=BOT_TOKEN)
+    dp = Dispatcher(bot)
+    
+    @dp.message_handler(commands=['start'])
+    async def start_cmd(message: types.Message):
+        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
+        
+        WEBAPP_URL = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "https://твой-проект.up.railway.app")
+        if not WEBAPP_URL.startswith("http"):
+            WEBAPP_URL = "https://" + WEBAPP_URL
+        
+        keyboard = InlineKeyboardMarkup()
+        keyboard.add(InlineKeyboardButton("🎮 Играть", web_app=WebAppInfo(url=WEBAPP_URL)))
+        await message.answer("🎮 Нажимай на красный круг!", reply_markup=keyboard)
+    
+    executor.start_polling(dp, skip_updates=True)
+
+# Запускаем бота в отдельном потоке (не блокирует FastAPI)
+import threading
+threading.Thread(target=run_bot, daemon=True).start()
