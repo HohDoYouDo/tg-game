@@ -57,20 +57,11 @@ def run_bot_in_loop():
     except Exception as e:
         print(f"❌ ОШИБКА БОТА: {e}", flush=True)
 
-# ========== ЗАПУСК ==========
-if __name__ == "__main__":
-    print("📢 ЗАПУСК main.py (if __name__ == '__main__')", flush=True)
-    
-    # Запускаем бота в отдельном потоке с новым event loop
-    bot_thread = threading.Thread(target=run_bot_in_loop, daemon=True)
-    bot_thread.start()
-    print("📢 ПОТОК БОТА ЗАПУЩЕН", flush=True)
-    
-    # Даём боту время запуститься
-    import time
-    time.sleep(2)
-    
-    # Запускаем FastAPI
-    port = int(os.environ.get("PORT", 8000))
-    print(f"🚀 FastAPI запускается на порту {port}", flush=True)
-    uvicorn.run(app, host="0.0.0.0", port=port)
+# ЗАПУСКАЕМ БОТА СРАЗУ (не в if __name__)
+print("📢 ЗАПУСК БОТА В ПОТОКЕ", flush=True)
+bot_thread = threading.Thread(target=run_bot_in_loop, daemon=True)
+bot_thread.start()
+print("📢 ПОТОК БОТА ЗАПУЩЕН", flush=True)
+
+# FastAPI будет запущен через uvicorn командой из Procfile
+print("🚀 FastAPI будет запущен отдельно", flush=True)
