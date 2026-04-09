@@ -1,0 +1,106 @@
+<!-- game.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body { text-align: center; font-family: sans-serif; background: #1a1a2e; color: white; }
+        canvas { background: white; border-radius: 10px; margin: 20px; cursor: pointer; }
+        .score { font-size: 32px; margin: 10px; color: gold; }
+        button { padding: 10px 30px; font-size: 18px; border-radius: 30px; border: none; background: #ff4757; color: white; }
+    </style>
+</head>
+<body>
+    <div class="score">🎯 Счёт: <span id="score">0</span></div>
+    <canvas id="game" width="300" height="300"></canvas>
+    <button id="restart">🔄 Новая игра</button>
+
+    <script>
+        // Telegram
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+        
+        const user = tg.initDataUnsafe?.user;
+        const userId = user?.id;
+        const username = user?.username || user?.first_name || "Игрок";
+        
+        const API_URL = "https://твой-сервер.pythonanywhere.com"; // Замени позже
+        
+        // Игра
+        const canvas = document.getElementById('game');
+        const ctx = canvas.getContext('2d');
+        let score = 0;
+        let timeLeft = 30;
+        let gameActive = true;
+        let targetX = 150, targetY = 150;
+        
+        function randomPos() {
+            return { x: Math.random() * 260, y: Math.random() * 260 };
+        }
+        
+        function draw() {
+            ctx.fillStyle = '#2c3e50';
+            ctx.fillRect(0, 0, 300, 300);
+            ctx.fillStyle = '#ff4757';
+            ctx.beginPath();
+            ctx.arc(targetX + 20, targetY + 20, 20, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.fillText("👆", targetX + 12, targetY + 28);
+            requestAnimationFrame(draw);
+        }
+        
+        canvas.addEventListener('click', (e) => {
+            if (!gameActive) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) * (300 / rect.width);
+            const y = (e.clientY - rect.top) * (300 / rect.height);
+            
+            if (Math.abs(x - targetX - 20) < 25 && Math.abs(y - targetY - 20) < 25) {
+                score++;
+                document.getElementById('score').innerText = score;
+                const newPos = randomPos();
+                targetX = newPos.x;
+                targetY = newPos.y;
+                tg.HapticFeedback?.impactOccurred('light');
+            }
+        });
+        
+        // Таймер
+        let timer = setInterval(() => {
+            if (!gameActive) return;
+            timeLeft--;
+            if (timeLeft <= 0) endGame();
+        }, 1000);
+        
+        async function endGame() {
+            gameActive = false;
+            clearInterval(timer);
+            
+            // Сохраняем рекорд
+            await fetch(`${API_URL}/api/score?user_id=${userId}&username=${username}&score=${score}`);
+            
+            tg.showAlert(`Игра окончена! Счёт: ${score}`);
+        }
+        
+        document.getElementById('restart').onclick = () => {
+            score = 0;
+            timeLeft = 30;
+            gameActive = true;
+            document.getElementById('score').innerText = "0";
+            const newPos = randomPos();
+            targetX = newPos.x;
+            targetY = newPos.y;
+            clearInterval(timer);
+            timer = setInterval(() => {
+                if (!gameActive) return;
+                timeLeft--;
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+        };
+        
+        draw();
+    </script>
+</body>
+</html>
