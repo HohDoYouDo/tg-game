@@ -2,17 +2,12 @@
 from fastapi import FastAPI, Query
 from fastapi.responses import HTMLResponse
 import sqlite3
+import os
 import asyncio
-from aiogram import Bot, types
-from aiogram.dispatcher import Dispatcher
-from aiogram.utils import executor
 import threading
+from contextlib import asynccontextmanager
 
-# ========== НАСТРОЙКИ ==========
-BOT_TOKEN = "ТВОЙ_ТОКЕН_ОТ_BOTFATHER"  # Замени на свой!
-WEBAPP_URL = "https://твой-проект.up.railway.app"  # Замени после деплоя
-
-# ========== БАЗА ДАННЫХ (SQLite) ==========
+# ========== БАЗА ДАННЫХ ==========
 def init_db():
     conn = sqlite3.connect('game.db')
     conn.execute('''
@@ -46,7 +41,7 @@ def get_top():
 
 init_db()
 
-# ========== FASTAPI (веб-сервер) ==========
+# ========== FASTAPI ==========
 app = FastAPI()
 
 @app.get('/')
@@ -63,29 +58,9 @@ async def save_score(user_id: int, username: str, score: int):
 async def get_top_scores():
     return get_top()
 
-# ========== TELEGRAM БОТ ==========
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(bot)
-
-@dp.message_handler(commands=['start'])
-async def start_command(message: types.Message):
-    keyboard = types.InlineKeyboardMarkup()
-    keyboard.add(types.InlineKeyboardButton("🎮 Играть", web_app=types.WebAppInfo(url=WEBAPP_URL)))
-    await message.answer(
-        "🎮 Нажимай на красный круг! У тебя 30 секунд.\n👇 Нажми на кнопку, чтобы начать",
-        reply_markup=keyboard
-    )
-
-def run_bot():
-    executor.start_polling(dp, skip_updates=True)
-
-# ========== ЗАПУСК ВСЕГО СРАЗУ ==========
-import uvicorn
-import threading
-
-# Запускаем бота в отдельном потоке
-threading.Thread(target=run_bot, daemon=True).start()
-
-# Запускаем FastAPI
+# ========== ЗАПУСК ==========
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import uvicorn
+    port = int(os.environ.get("PORT", 8000))
+    print(f"🚀 Запуск на порту {port}")
+    uvicorn.run(app, host="0.0.0.0", port=port)
