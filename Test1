@@ -1,0 +1,59 @@
+# main.py
+from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
+import sqlite3
+import json
+
+app = FastAPI()
+
+# === РАБОТА С БД (ты это знаешь) ===
+def init_db():
+    conn = sqlite3.connect('game.db')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS players (
+            user_id INTEGER PRIMARY KEY,
+            username TEXT,
+            score INTEGER
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def update_score(user_id, username, score):
+    conn = sqlite3.connect('game.db')
+    # Проверяем, есть ли уже игрок
+    cur = conn.execute('SELECT score FROM players WHERE user_id = ?', (user_id,))
+    row = cur.fetchone()
+    
+    if row:
+        if score > row[0]:
+            conn.execute('UPDATE players SET score = ? WHERE user_id = ?', (score, user_id))
+    else:
+        conn.execute('INSERT INTO players (user_id, username, score) VALUES (?, ?, ?)',
+                     (user_id, username, score))
+    conn.commit()
+    conn.close()
+
+def get_top():
+    conn = sqlite3.connect('game.db')
+    rows = conn.execute('SELECT username, score FROM players ORDER BY score DESC LIMIT 10').fetchall()
+    conn.close()
+    return [{'username': r[0], 'score': r[1]} for r in rows]
+
+init_db()
+
+# === API (просто входные точки) ===
+@app.post('/api/score')
+async def save_score(user_id: int, username: str, score: int):
+    update_score(user_id, username, score)
+    return {'ok': True}
+
+@app.get('/api/top')
+async def get_top_scores():
+    return get_top()
+
+# === Отдаём игру ===
+@app.get('/')
+async def game():
+    with open('game.html', 'r', encoding='utf-8') as f:
+        return HTMLResponse(f.read())
