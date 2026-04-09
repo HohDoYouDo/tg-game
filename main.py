@@ -6,6 +6,7 @@ import os
 import asyncio
 import threading
 import time
+import uvicorn
 
 # ========== БАЗА ДАННЫХ ==========
 def init_db():
@@ -58,19 +59,24 @@ async def save_score(user_id: int, username: str, score: int):
 async def get_top_scores():
     return get_top()
 
-# ========== БОТ ДЛЯ aiogram 3.x ==========
-def run_bot():
-    import asyncio
+# ========== ЗАПУСК FASTAPI В ПОТОКЕ ==========
+def run_fastapi():
+    port = int(os.environ.get("PORT", 8000))
+    print(f"🚀 FastAPI запускается на порту {port}")
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
+# ========== БОТ (ЗАПУСКАЕТСЯ В ГЛАВНОМ ПОТОКЕ) ==========
+async def run_bot():
     from aiogram import Bot, Dispatcher, types
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
     from aiogram.filters import Command
     
     BOT_TOKEN = os.environ.get("BOT_TOKEN")
     if not BOT_TOKEN:
-        print("❌ BOT_TOKEN не найден! Добавь переменную окружения BOT_TOKEN")
+        print("❌ BOT_TOKEN не найден!")
         return
     
-    # ТВОЙ РЕАЛЬНЫЙ URL (тот, который работает в браузере)
+    # ТВОЙ URL (тот, который открывается в браузере)
     WEBAPP_URL = "https://tg-game-production-fabe.up.railway.app"
     
     print(f"🤖 Бот запускается. WebApp URL: {WEBAPP_URL}")
@@ -86,23 +92,21 @@ def run_bot():
         await message.answer("🎮 Нажимай на красный круг! У тебя 30 секунд.", reply_markup=keyboard)
         print(f"✅ /start от {message.from_user.id}")
     
-    async def main():
-        print("✅ Бот готов, запускаем polling...")
-        await dp.start_polling(bot)
-    
-    asyncio.run(main())
+    print("✅ Бот готов, запускаем polling...")
+    await dp.start_polling(bot)
 
-def start_bot_delayed():
-    time.sleep(3)
-    print("🚀 Запускаем бота...")
-    run_bot()
+def start_bot():
+    asyncio.run(run_bot())
 
-# Запускаем бота в отдельном потоке
-threading.Thread(target=start_bot_delayed, daemon=True).start()
-
-# ========== ЗАПУСК FASTAPI ==========
+# ========== ЗАПУСК ==========
 if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    print(f"🚀 FastAPI запускается на порту {port}")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # Запускаем FastAPI в отдельном потоке
+    fastapi_thread = threading.Thread(target=run_fastapi, daemon=True)
+    fastapi_thread.start()
+    
+    # Даём FastAPI время запуститься
+    time.sleep(2)
+    
+    # Запускаем бота в главном потоке
+    print("🚀 Запускаем бота...")
+    start_bot()
