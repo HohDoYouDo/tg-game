@@ -49,18 +49,26 @@ async def run_bot():
     print(f"🤖 БОТ: WebApp URL = {WEBAPP_URL}", flush=True)
     await dp.start_polling(bot)
 
-def start_bot_thread():
-    print("📢 ЗАПУСК БОТА В ПОТОКЕ", flush=True)
-    asyncio.run(run_bot())
+def run_bot_in_loop():
+    try:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(run_bot())
+    except Exception as e:
+        print(f"❌ ОШИБКА БОТА: {e}", flush=True)
 
 # ========== ЗАПУСК ==========
 if __name__ == "__main__":
     print("📢 ЗАПУСК main.py (if __name__ == '__main__')", flush=True)
     
-    # Запускаем бота в отдельном потоке
-    bot_thread = threading.Thread(target=start_bot_thread, daemon=True)
+    # Запускаем бота в отдельном потоке с новым event loop
+    bot_thread = threading.Thread(target=run_bot_in_loop, daemon=True)
     bot_thread.start()
     print("📢 ПОТОК БОТА ЗАПУЩЕН", flush=True)
+    
+    # Даём боту время запуститься
+    import time
+    time.sleep(2)
     
     # Запускаем FastAPI
     port = int(os.environ.get("PORT", 8000))
