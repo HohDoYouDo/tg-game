@@ -6,7 +6,12 @@ import os
 import asyncio
 import threading
 from contextlib import asynccontextmanager
+import os
 
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+
+if not BOT_TOKEN:
+    raise ValueError("BOT_TOKEN не найден! Добавь переменную окружения BOT_TOKEN")
 # ========== БАЗА ДАННЫХ ==========
 def init_db():
     conn = sqlite3.connect('game.db')
