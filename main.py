@@ -1,8 +1,9 @@
 # main.py
-from fastapi import FastAPI, Query
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 import sqlite3
 import os
+import asyncio
 import threading
 import time
 
@@ -57,42 +58,46 @@ async def save_score(user_id: int, username: str, score: int):
 async def get_top_scores():
     return get_top()
 
-# ========== БОТ ==========
+# ========== БОТ ДЛЯ aiogram 3.x ==========
 def run_bot():
+    import asyncio
     from aiogram import Bot, Dispatcher, types
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
-    from aiogram.utils import executor
+    from aiogram.filters import Command
     
     BOT_TOKEN = os.environ.get("BOT_TOKEN")
     if not BOT_TOKEN:
         print("❌ BOT_TOKEN не найден! Добавь переменную окружения BOT_TOKEN")
         return
     
-    # Получаем URL приложения
-    WEBAPP_URL = os.environ.get("RAILWAY_PUBLIC_DOMAIN")
-    if not WEBAPP_URL:
-        WEBAPP_URL = "https://tg-game-production-fabe.up.railway.app"
-    if not WEBAPP_URL.startswith("http"):
-        WEBAPP_URL = "https://" + WEBAPP_URL
+    # ТВОЙ РЕАЛЬНЫЙ URL (тот, который работает в браузере)
+    WEBAPP_URL = "https://tg-game-production-fabe.up.railway.app"
     
     print(f"🤖 Бот запускается. WebApp URL: {WEBAPP_URL}")
     
     bot = Bot(token=BOT_TOKEN)
-    dp = Dispatcher(bot)
+    dp = Dispatcher()
     
-    @dp.message_handler(commands=['start'])
+    @dp.message(Command("start"))
     async def start_cmd(message: types.Message):
-        keyboard = InlineKeyboardMarkup()
-        keyboard.add(InlineKeyboardButton("🎮 Играть", web_app=WebAppInfo(url=WEBAPP_URL)))
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🎮 Играть", web_app=WebAppInfo(url=WEBAPP_URL))]
+        ])
         await message.answer("🎮 Нажимай на красный круг! У тебя 30 секунд.", reply_markup=keyboard)
+        print(f"✅ /start от {message.from_user.id}")
     
-    executor.start_polling(dp, skip_updates=True)
+    async def main():
+        print("✅ Бот готов, запускаем polling...")
+        await dp.start_polling(bot)
+    
+    asyncio.run(main())
 
-# Запускаем бота в отдельном потоке через 2 секунды
 def start_bot_delayed():
-    time.sleep(2)
+    time.sleep(3)
+    print("🚀 Запускаем бота...")
     run_bot()
 
+# Запускаем бота в отдельном потоке
 threading.Thread(target=start_bot_delayed, daemon=True).start()
 
 # ========== ЗАПУСК FASTAPI ==========
