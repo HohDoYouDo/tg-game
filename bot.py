@@ -6,7 +6,7 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from aiogram.filters import Command
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-WEBAPP_URL = "https://tg-game-production-fabe.up.railway.app"
+WEBAPP_URL = "https://compassionate-amazement-production-b6b2.up.railway.app"
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
