@@ -1,12 +1,18 @@
 # main.py
-from fastapi import FastAPI
+from fastapi import FastAPI, Query
 from fastapi.responses import HTMLResponse
 import sqlite3
-import json
+import asyncio
+from aiogram import Bot, types
+from aiogram.dispatcher import Dispatcher
+from aiogram.utils import executor
+import threading
 
-app = FastAPI()
+# ========== НАСТРОЙКИ ==========
+BOT_TOKEN = "ТВОЙ_ТОКЕН_ОТ_BOTFATHER"  # Замени на свой!
+WEBAPP_URL = "https://твой-проект.up.railway.app"  # Замени после деплоя
 
-# === РАБОТА С БД (ты это знаешь) ===
+# ========== БАЗА ДАННЫХ (SQLite) ==========
 def init_db():
     conn = sqlite3.connect('game.db')
     conn.execute('''
@@ -19,12 +25,10 @@ def init_db():
     conn.commit()
     conn.close()
 
-def update_score(user_id, username, score):
+def update_score(user_id: int, username: str, score: int):
     conn = sqlite3.connect('game.db')
-    # Проверяем, есть ли уже игрок
     cur = conn.execute('SELECT score FROM players WHERE user_id = ?', (user_id,))
     row = cur.fetchone()
-    
     if row:
         if score > row[0]:
             conn.execute('UPDATE players SET score = ? WHERE user_id = ?', (score, user_id))
@@ -42,8 +46,15 @@ def get_top():
 
 init_db()
 
-# === API (просто входные точки) ===
-@app.post('/api/score')
+# ========== FASTAPI (веб-сервер) ==========
+app = FastAPI()
+
+@app.get('/')
+async def game_page():
+    with open('game.html', 'r', encoding='utf-8') as f:
+        return HTMLResponse(f.read())
+
+@app.get('/api/score')
 async def save_score(user_id: int, username: str, score: int):
     update_score(user_id, username, score)
     return {'ok': True}
@@ -52,8 +63,29 @@ async def save_score(user_id: int, username: str, score: int):
 async def get_top_scores():
     return get_top()
 
-# === Отдаём игру ===
-@app.get('/')
-async def game():
-    with open('game.html', 'r', encoding='utf-8') as f:
-        return HTMLResponse(f.read())
+# ========== TELEGRAM БОТ ==========
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher(bot)
+
+@dp.message_handler(commands=['start'])
+async def start_command(message: types.Message):
+    keyboard = types.InlineKeyboardMarkup()
+    keyboard.add(types.InlineKeyboardButton("🎮 Играть", web_app=types.WebAppInfo(url=WEBAPP_URL)))
+    await message.answer(
+        "🎮 Нажимай на красный круг! У тебя 30 секунд.\n👇 Нажми на кнопку, чтобы начать",
+        reply_markup=keyboard
+    )
+
+def run_bot():
+    executor.start_polling(dp, skip_updates=True)
+
+# ========== ЗАПУСК ВСЕГО СРАЗУ ==========
+import uvicorn
+import threading
+
+# Запускаем бота в отдельном потоке
+threading.Thread(target=run_bot, daemon=True).start()
+
+# Запускаем FastAPI
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
