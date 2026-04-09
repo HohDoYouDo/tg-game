@@ -6,7 +6,7 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 from aiogram.filters import Command
 
-# ========== ЗАГЛУШКА ДЛЯ RAILWAY (чтобы не ругался) ==========
+# ========== ЗАГЛУШКА ДЛЯ RAILWAY (чтобы не ругался) =========
 app = FastAPI()
 
 @app.get("/")
